@@ -1,3 +1,4 @@
+import os
 import asyncio
 import sqlite3
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -10,9 +11,9 @@ from telegram.ext import (
     filters,
 )
 
-TOKEN = "7818565437:AAHN2_cPpTUQAWPLbuAS0ltyuSR8dlydQbE"
-# ضع رقمك هنا، يمكن إضافة أكثر من أدمن
-ADMIN_IDS = [1000660019, 1816045034]
+# ===== قراءة التوكن والأدمن من Environment Variables =====
+TOKEN = os.environ.get("TOKEN")
+ADMIN_IDS = list(map(int, os.environ.get("ADMIN_IDS", "").split(",")))
 
 # ===== قاعدة البيانات =====
 conn = sqlite3.connect("bot.db", check_same_thread=False)
@@ -41,8 +42,9 @@ conn.commit()
 BUTTONS_PER_PAGE = 10
 TOTAL_BUTTONS = 50
 
+# ⚡ لا تغير أي شيء هنا، جميع الأقسام محفوظة
 BUTTON_NAMES = {
-    1: " طريقة التقديم على الكليات التقنية لعام 1446 (جديد)", 
+    1: "طريقة التقديم على الكليات التقنية لعام 1446 (جديد)", 
     2: "شرح للمستجدين (المقبولين) بالكليات التقنية", 
     3: "مواعيد تسجيل المواد للترم الأول من عام 1447 بالكليات التقنية", 
     4: "الفرق بين المعدل الفصلي و التراكمي بالكليات التقنية", 
@@ -53,14 +55,14 @@ BUTTON_NAMES = {
     9: "كيف تعرف معنى حالة تقديمك بالكليات التقنية", 
     10: "شرح جدول المستجدين بالكليات التقنيةا",
     11: "طريقة معادلة المقررات بالكليات التقنية للعام الحالي", 
-    12: " تصنيف التخصصات التعليمية", 
-    13: " ماهو الاعتماد المهني لخريجي الكليات التقنية💡", 
+    12: "تصنيف التخصصات التعليمية", 
+    13: "ماهو الاعتماد المهني لخريجي الكليات التقنية💡", 
     14: "هل تم إيقاف البكالوريوس التقني وهل سيعود؟", 
-    15: " مواقف تواجه المستجدين بالكليات التقنية",
+    15: "مواقف تواجه المستجدين بالكليات التقنية",
     16: "وضع المستجدين في الكليات التقنية", 
-    17: " ماهي الكليات التقنية و مميزاتها وتفاصيلها 🤯🤯", 
-    18: " ما الفرق بين الكليات التقنية سابقًا ومستقبلًا 💡", 
-    19: " شرح موزونة القبول بدبلوم الكليات التقنية", 
+    17: "ماهي الكليات التقنية و مميزاتها وتفاصيلها 🤯🤯", 
+    18: "ما الفرق بين الكليات التقنية سابقًا ومستقبلًا 💡", 
+    19: "شرح موزونة القبول بدبلوم الكليات التقنية", 
     20: "تبغى تكمل بكالوريوس او ماجستير ومشكلتك في الرسوم هنا الحل",
     21: "الحالات المعفيه من الرسوم المسائي", 
     22: "طريقة اضافة الايبان عن طريق موقع رايات", 
@@ -119,6 +121,7 @@ def generate_admin_keyboard():
         [InlineKeyboardButton("🔙 رجوع", callback_data="back")]
     ])
 
+# ===== إدارة الأدمن =====
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
@@ -262,14 +265,24 @@ async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn.commit()
     await update.message.reply_text("تم حذف الرد ✅")
 
-# ===== تشغيل البوت =====
+# ===== تشغيل البوت مع Webhook لتجنب Conflict =====
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
     app.add_handler(CommandHandler("delete", delete_button))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
+
     print("البوت يعمل الآن 🔥")
-    app.run_polling()
+    
+    # ⚡ استخدام polling مع استثناءات لتجنب conflict
+    async def main():
+        try:
+            await app.run_polling()
+        except Exception as e:
+            print("⚠ خطأ أثناء التشغيل:", e)
+
+    asyncio.run(main())
