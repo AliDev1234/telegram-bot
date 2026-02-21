@@ -250,6 +250,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
@@ -259,13 +260,12 @@ def main():
 
     print("🚀 Bot Started Successfully")
 
-    PORT = int(os.environ.get("PORT", 8000))
-    WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "https://refreshing-possibility.up.railway.app")
+    PORT = int(os.environ.get("PORT", 8080))
 
     app.run_webhook(
         listen="0.0.0.0",
         port=PORT,
-        webhook_url=WEBHOOK_URL
+        webhook_url=f"https://telegram-bot-production-3062.up.railway.app/{TOKEN}"
     )
 
 if __name__ == "__main__":
