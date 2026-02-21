@@ -136,7 +136,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cursor.execute("INSERT OR IGNORE INTO users (id) VALUES (?)", (user_id,))
     conn.commit()
     await update.message.reply_text(
-        "مرحباً بك 🔥 اختر أحjfhgjfjghfhjgد الأقسام:",
+        "مرحباً بك 🔥 اختر أحد الأقسام:",
         reply_markup=generate_keyboard(0)
     )
 
