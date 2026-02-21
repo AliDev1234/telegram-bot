@@ -247,14 +247,14 @@ def main():
     print("🚀 Bot Started Successfully")
 
     import os
+    PORT = int(os.environ.get("PORT", 8000))
 
-PORT = int(os.environ.get("PORT", 8000))
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url="https://refreshing-possibility.up.railway.app"
+    )
 
-app.run_webhook(
-    listen="0.0.0.0",
-    port=PORT,
-    webhook_url="https://refreshing-possibility.up.railway.app"
-)
 
 if __name__ == "__main__":
     main()
