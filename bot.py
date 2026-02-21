@@ -247,8 +247,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # =========================
 # =========================
-# التشغيل النهائي مع Webhook (مصحح للـ Railway)
-# =========================
 def main():
     TOKEN = os.environ.get("BOT_TOKEN")
     if not TOKEN:
@@ -262,7 +260,7 @@ def main():
 
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # إضافة كل الـ handlers كما في كودك الحالي
+    # إضافة الـ handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
@@ -272,13 +270,13 @@ def main():
 
     print("🚀 Bot Started Successfully")
 
-    # تشغيل webhook بطريقة مناسبة للـ Railway
-app.run_webhook(
-    listen="0.0.0.0",
-    port=PORT,
-    webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
-    drop_pending_updates=True
-)
+    # ✅ تشغيل webhook داخل main
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
+        drop_pending_updates=True
+    )
 
 if __name__ == "__main__":
     main()
