@@ -11,9 +11,16 @@ from telegram.ext import (
     filters,
 )
 
-# ===== قراءة التوكن والأدمن من Environment Variables =====
+
+
+# ===== قراءة التوكن من السيرفر =====
 TOKEN = os.environ.get("TOKEN")
-ADMIN_IDS = list(map(int, os.environ.get("ADMIN_IDS", "").split(",")))
+if not TOKEN:
+    raise ValueError("❌ لم يتم تعيين TOKEN في Railway Variables")
+
+# ===== ضع الادمن مباشرة هنا =====
+ADMIN_IDS = [1000660019, 1816045034]
+
 
 # ===== قاعدة البيانات =====
 conn = sqlite3.connect("bot.db", check_same_thread=False)
