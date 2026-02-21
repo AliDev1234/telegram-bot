@@ -252,10 +252,6 @@ def main():
     if not TOKEN:
         raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
 
-    WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
-    if not WEBHOOK_URL:
-        raise ValueError("❌ WEBHOOK_URL غير موجود في Railway Variables")
-
     PORT = int(os.environ.get("PORT", 8080))
 
     app = ApplicationBuilder().token(TOKEN).build()
@@ -270,13 +266,8 @@ def main():
 
     print("🚀 Bot Started Successfully")
 
-    # ✅ تشغيل webhook داخل main
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
-        drop_pending_updates=True
-    )
+    # ✅ الحل النهائي: استخدام Polling بدل Webhook
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
