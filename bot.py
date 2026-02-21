@@ -266,7 +266,7 @@ def main():
 
     print("🚀 Bot Started Successfully")
 
-    # ✅ الحل النهائي: استخدام Polling بدل Webhook
+    # ✅ الحل النهائي: تشغيل Polling لتجنب مشاكل Webhook على Railway
     app.run_polling()
 
 if __name__ == "__main__":
