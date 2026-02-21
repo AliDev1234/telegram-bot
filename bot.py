@@ -1,23 +1,25 @@
 import os
 import sqlite3
 import logging
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     CallbackQueryHandler,
+    MessageHandler,
     ContextTypes,
+    filters,
 )
 
 # =========================
 # الإعدادات
 # =========================
 
-# ✅ التوكن من متغير السيرفر
-TOKEN = os.getenv("BOT_TOKEN")
+TOKEN = os.getenv("BOT_TOKEN")  # التوكن يتم قراءته من متغيرات البيئة في Railway
 
-# ✅ الأدمن من الكود (لم يتم حذفهم)
-ADMIN_IDS = [1000660019, 1816045034]
+# ضع جميع الأدمن هنا (لن يتم حذفهم)
+ADMIN_IDS = [1000660019, 1816045034]  # أدمن 1 وأدمن 2
 
 if not TOKEN:
     raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
@@ -51,7 +53,7 @@ CREATE TABLE IF NOT EXISTS buttons (
 conn.commit()
 
 # =========================
-# الأقسام الـ 50 (لم يتم حذف أي قسم)
+# الأقسام الـ50
 # =========================
 
 BUTTONS_PER_PAGE = 10
@@ -111,22 +113,17 @@ BUTTON_NAMES = {
 }
 
 # =========================
-# لوحة الأزرار
+# توليد لوحة الأزرار
 # =========================
 
 def generate_keyboard(page=0):
     keyboard = []
     start = page * BUTTONS_PER_PAGE + 1
     end = min(start + BUTTONS_PER_PAGE, TOTAL_BUTTONS + 1)
-
+    
     for i in range(start, end):
-        keyboard.append([
-            InlineKeyboardButton(
-                BUTTON_NAMES.get(i, f"زر {i}"),
-                callback_data=f"btn{i}"
-            )
-        ])
-
+        keyboard.append([InlineKeyboardButton(BUTTON_NAMES.get(i, f"زر {i}"), callback_data=f"btn{i}")])
+    
     nav = []
     if page > 0:
         nav.append(InlineKeyboardButton("⬅ السابق", callback_data=f"page_{page-1}"))
@@ -134,62 +131,62 @@ def generate_keyboard(page=0):
         nav.append(InlineKeyboardButton("التالي ➡", callback_data=f"page_{page+1}"))
     if nav:
         keyboard.append(nav)
-
+    
     return InlineKeyboardMarkup(keyboard)
 
 # =========================
-# الأوامر
+# أوامر البوت
 # =========================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     cursor.execute("INSERT OR IGNORE INTO users (id) VALUES (?)", (user_id,))
     conn.commit()
-
-    await update.message.reply_text(
-        "مرحباً بك 🔥 اختر أحد الأقسام:",
-        reply_markup=generate_keyboard(0)
-    )
+    await update.message.reply_text("مرحباً بك 🔥 اختر أحد الأقسام:", reply_markup=generate_keyboard(0))
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
-
     cursor.execute("SELECT COUNT(*) FROM users")
     users = cursor.fetchone()[0]
-
     await update.message.reply_text(f"👥 عدد المستخدمين: {users}")
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
     data = query.data
 
     if data.startswith("page_"):
         page = int(data.split("_")[1])
-        await query.edit_message_reply_markup(
-            reply_markup=generate_keyboard(page)
-        )
+        await query.edit_message_reply_markup(reply_markup=generate_keyboard(page))
         return
 
     await query.edit_message_text("تم الضغط على الزر ✅")
 
 # =========================
-# التشغيل الصحيح بدون RuntimeWarning
+# التشغيل الاحترافي بدون Loop Error
 # =========================
 
-def main():
+async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # إضافة كل الهاندلرز
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    print("🚀 البوت يعمل بثبات كامل بدون Loop Error")
-
-    app.run_polling()
+    print("🚀 البوت يعمل الآن بدون Loop Error")
+    
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    await app.updater.idle()
+    await app.stop()
+    await app.shutdown()
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print("⚠ خطأ أثناء التشغيل:", e)
