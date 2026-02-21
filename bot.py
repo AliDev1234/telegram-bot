@@ -246,11 +246,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
 
 # =========================
-# التشغيل النهائي مع Webhook
+# =========================
+# التشغيل النهائي مع Webhook (مصحح للـ Railway)
 # =========================
 def main():
+    TOKEN = os.environ.get("BOT_TOKEN")
+    if not TOKEN:
+        raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
+
+    WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
+    if not WEBHOOK_URL:
+        raise ValueError("❌ WEBHOOK_URL غير موجود في Railway Variables")
+
+    PORT = int(os.environ.get("PORT", 8080))
+
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # إضافة كل الـ handlers كما في كودك الحالي
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
@@ -260,12 +272,12 @@ def main():
 
     print("🚀 Bot Started Successfully")
 
-    PORT = int(os.environ.get("PORT", 8080))
-
+    # تشغيل webhook بطريقة مناسبة للـ Railway
     app.run_webhook(
         listen="0.0.0.0",
         port=PORT,
-        webhook_url=f"https://telegram-bot-production-3062.up.railway.app/{TOKEN}"
+        webhook_url=f"{WEBHOOK_URL}/{TOKEN}",
+        drop_pending_updates=True
     )
 
 if __name__ == "__main__":
