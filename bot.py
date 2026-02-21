@@ -6,19 +6,18 @@ from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     CallbackQueryHandler,
-    MessageHandler,
     ContextTypes,
-    filters,
 )
 
 # =========================
 # الإعدادات
 # =========================
 
+# ✅ التوكن من متغير السيرفر
 TOKEN = os.getenv("7818565437:AAHN2_cPpTUQAWPLbuAS0ltyuSR8dlydQbE")
 
-# ضع جميع الأدمن هنا (لن يتم حذفهم)
-ADMIN_IDS = [1000660019, 1816045034]  # ضع أيدياتك هنا
+# ✅ الأدمن من الكود (لم يتم حذفهم)
+ADMIN_IDS = [1000660019, 1816045034]
 
 if not TOKEN:
     raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
@@ -178,10 +177,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text("تم الضغط على الزر ✅")
 
 # =========================
-# التشغيل بدون مشاكل Loop
+# التشغيل الصحيح بدون RuntimeWarning
 # =========================
 
-if __name__ == "__main__":
+def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -190,4 +189,7 @@ if __name__ == "__main__":
 
     print("🚀 البوت يعمل بثبات كامل بدون Loop Error")
 
-    app.run_polling(close_loop=False)
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
