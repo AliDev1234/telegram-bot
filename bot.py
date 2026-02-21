@@ -14,7 +14,7 @@ from telegram.ext import (
 # =========================
 
 # ✅ التوكن من متغير السيرفر
-TOKEN = os.getenv("7818565437:AAHN2_cPpTUQAWPLbuAS0ltyuSR8dlydQbE")
+TOKEN = os.getenv("BOT_TOKEN")
 
 # ✅ الأدمن من الكود (لم يتم حذفهم)
 ADMIN_IDS = [1000660019, 1816045034]
