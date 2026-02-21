@@ -248,12 +248,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 # =========================
 def main():
-    TOKEN = os.environ.get("BOT_TOKEN")
-    if not TOKEN:
-        raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
-
-    PORT = int(os.environ.get("PORT", 8080))
-
     app = ApplicationBuilder().token(TOKEN).build()
 
     # إضافة الـ handlers
