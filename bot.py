@@ -1,7 +1,6 @@
 import os
 import sqlite3
 import logging
-import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -16,15 +15,11 @@ from telegram.ext import (
 # الإعدادات
 # =========================
 
-
 TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
 
 ADMIN_IDS = [1000660019, 1816045034]  # الأدمنين (لا نحذفهم)
-
-if not TOKEN:
-    raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
 
 logging.basicConfig(level=logging.INFO)
 
@@ -282,7 +277,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
 
 # =========================
-# التشغيل النهائي بدون Loop Error
+# التشغيل النهائي باستخدام Webhook
 # =========================
 
 def main():
@@ -297,15 +292,14 @@ def main():
 
     print("🚀 Bot Started Successfully")
 
-    import os
     PORT = int(os.environ.get("PORT", 8000))
+    WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "https://refreshing-possibility.up.railway.app")
 
     app.run_webhook(
         listen="0.0.0.0",
         port=PORT,
-        webhook_url="https://refreshing-possibility.up.railway.app"
+        webhook_url=WEBHOOK_URL
     )
-
 
 if __name__ == "__main__":
     main()
