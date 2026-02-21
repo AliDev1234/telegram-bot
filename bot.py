@@ -16,7 +16,8 @@ from telegram.ext import (
 # الإعدادات
 # =========================
 
-TOKEN = os.getenv("BOT_TOKEN")
+
+TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
 
@@ -245,7 +246,15 @@ def main():
 
     print("🚀 Bot Started Successfully")
 
-    app.run_polling(close_loop=False)
+    import os
+
+PORT = int(os.environ.get("PORT", 8000))
+
+app.run_webhook(
+    listen="0.0.0.0",
+    port=PORT,
+    webhook_url="https://refreshing-possibility.up.railway.app"
+)
 
 if __name__ == "__main__":
     main()
