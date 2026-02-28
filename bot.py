@@ -12,13 +12,19 @@ from telegram.ext import (
 )
 
 # =========================
+# حذف قاعدة البيانات القديمة عند التشغيل (للتحديث التلقائي)
+# =========================
+if os.path.exists("bot.db"):
+    os.remove("bot.db")
+
+# =========================
 # الإعدادات
 # =========================
 TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
 
-ADMIN_IDS = [1000660019, 1816045034]  # الأدمنين (لا نحذفهم)
+ADMIN_IDS = [1000660019, 1816045034]  # الأدمنين
 
 logging.basicConfig(level=logging.INFO)
 
@@ -46,6 +52,14 @@ CREATE TABLE IF NOT EXISTS buttons (
 """)
 
 conn.commit()
+
+# =========================
+# بقية الكود (الأقسام، handlers، polling...)
+# =========================
+
+# ضع هنا جميع الأقسام BUTTON_NAMES و generate_keyboard و start و admin_panel و edit_button و delete_button و receive_content و button_handler
+# ... (يمكنك نسخ كل الكود السابق بعد هذا الجزء بدون تغييرات)
+
 
 # =========================
 # الأقسام الـ50
