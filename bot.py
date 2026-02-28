@@ -26,19 +26,16 @@ logging.basicConfig(level=logging.INFO)
 # قاعدة البيانات داخل مجلد db
 # =========================
 DB_FOLDER = os.path.join(os.getcwd(), "db")
-os.makedirs(DB_FOLDER, exist_ok=True)  # إنشاء المجلد إذا لم يكن موجود
+os.makedirs(DB_FOLDER, exist_ok=True)
 
-DB_PATH = os.path.join(DB_FOLDER, "bot.db")  # قاعدة البيانات داخل المجلد db
+DB_PATH = os.path.join(DB_FOLDER, "bot.db")
 
-# حذف أي قاعدة بيانات قديمة لضمان إنشاء جديدة (اختياري)
 if os.path.exists(DB_PATH):
     os.remove(DB_PATH)
 
-# إنشاء الاتصال بالقاعدة
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
 
-# إنشاء الجداول إذا لم تكن موجودة
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY
@@ -59,15 +56,7 @@ CREATE TABLE IF NOT EXISTS buttons (
 conn.commit()
 
 # =========================
-# بقية الكود (الأقسام، handlers، polling...)
-# =========================
-
-# ضع هنا جميع الأقسام BUTTON_NAMES و generate_keyboard و start و admin_panel و edit_button و delete_button و receive_content و button_handler
-# ... (يمكنك نسخ كل الكود السابق بعد هذا الجزء بدون تغييرات)
-
-
-# =========================
-# الأقسام الـ50
+# الأقسام الـ50 والأزرار
 # =========================
 BUTTONS_PER_PAGE = 10
 TOTAL_BUTTONS = 50
@@ -125,30 +114,23 @@ BUTTON_NAMES = {
     50: "معادلة المقررات",
 }
 
-# =========================
-# توليد لوحة الأزرار
-# =========================
 def generate_keyboard(page=0):
     keyboard = []
     start = page * BUTTONS_PER_PAGE + 1
     end = min(start + BUTTONS_PER_PAGE, TOTAL_BUTTONS + 1)
-
     for i in range(start, end):
         keyboard.append([InlineKeyboardButton(BUTTON_NAMES.get(i, f"زر {i}"), callback_data=f"btn{i}")])
-
     nav = []
     if page > 0:
         nav.append(InlineKeyboardButton("⬅ السابق", callback_data=f"page_{page-1}"))
     if end <= TOTAL_BUTTONS:
         nav.append(InlineKeyboardButton("التالي ➡", callback_data=f"page_{page+1}"))
-
     if nav:
         keyboard.append(nav)
-
     return InlineKeyboardMarkup(keyboard)
 
 # =========================
-# /start
+# Handlers (start, admin, edit, delete, receive_content, button_handler)
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -159,9 +141,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=generate_keyboard(0)
     )
 
-# =========================
-# /admin
-# =========================
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
@@ -176,9 +155,6 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🔥 مجموع الضغطات: {total_clicks}"
     )
 
-# =========================
-# /edit
-# =========================
 async def edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
@@ -190,9 +166,6 @@ async def edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["editing"] = button_id
     await update.message.reply_text("أرسل الآن النص أو الصورة أو الفيديو لهذا الزر.")
 
-# =========================
-# /delete
-# =========================
 async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
@@ -205,9 +178,6 @@ async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn.commit()
     await update.message.reply_text("🗑 تم حذف محتوى الزر بنجاح")
 
-# =========================
-# استقبال محتوى الأدمن
-# =========================
 async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "editing" not in context.user_data:
         return
@@ -235,9 +205,6 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.pop("editing")
     await update.message.reply_text("✅ تم حفظ المحتوى بنجاح")
 
-# =========================
-# التعامل مع الأزرار
-# =========================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -265,14 +232,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
 
 # =========================
-# تشغيل البوت
+# تشغيل البوت على Railway باستخدام Webhook
 # =========================
 import asyncio
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # إضافة الـ handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
@@ -282,17 +249,21 @@ async def main():
 
     print("🚀 Bot Started Successfully")
 
-    # حذف أي webhook قديم قبل polling
+    # حذف أي Webhook قديم قبل بدء البوت
     await app.bot.delete_webhook(drop_pending_updates=True)
 
-    # تشغيل polling للبوت
-    await app.run_polling()
+    # تشغيل Webhook بدلاً من Polling لتجنب Conflict
+    WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # ضع رابط الـ webhook هنا من Railway
+    if not WEBHOOK_URL:
+        raise ValueError("❌ WEBHOOK_URL غير موجود في متغيرات Railway")
+    await app.start()
+    await app.updater.start_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 8443)),
+        url_path=TOKEN,
+        webhook_url=f"{WEBHOOK_URL}/{TOKEN}"
+    )
+    await app.updater.idle()
 
 if __name__ == "__main__":
-    import asyncio
-    import nest_asyncio
-
-    # السماح بتداخل الحلقات لتجنب الخطأ في Railway أو بيئة Python الحالية
-    nest_asyncio.apply()
-
-    asyncio.get_event_loop().run_until_complete(main())
+    asyncio.run(main())
