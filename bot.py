@@ -1,10 +1,11 @@
 import os
 import sqlite3
 import logging
-from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
+    CallbackQueryHandler,
     MessageHandler,
     ContextTypes,
     filters,
@@ -15,9 +16,9 @@ from telegram.ext import (
 # =========================
 TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
-    raise ValueError("❌ BOT_TOKEN غير موجود في Variables")
+    raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
 
-ADMIN_IDS = [1000660019, 1816045034]
+ADMIN_IDS = [1000660019, 1816045034]  # الأدمنين (لا نحذفهم)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -47,12 +48,11 @@ CREATE TABLE IF NOT EXISTS buttons (
 conn.commit()
 
 # =========================
-# الإعدادات العامة
+# الأقسام الـ50
 # =========================
-BUTTONS_PER_SECTION = 10
+BUTTONS_PER_PAGE = 10
 TOTAL_BUTTONS = 50
 
-# أسماء الأزرار
 BUTTON_NAMES = {
     1: "طريقة التقديم على الكليات التقنية لعام 1446 (جديد)",
     2: "شرح للمستجدين (المقبولين) بالكليات التقنية",
@@ -107,34 +107,26 @@ BUTTON_NAMES = {
 }
 
 # =========================
-# القوائم
+# توليد لوحة الأزرار
 # =========================
-def main_menu():
-    keyboard = [
-        ["📚 القسم 1", "📚 القسم 2"],
-        ["📚 القسم 3", "📚 القسم 4"],
-        ["📚 القسم 5"],
-        ["❌ إخفاء الكيبورد"]
-    ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-
-def section_keyboard(section_number):
+def generate_keyboard(page=0):
     keyboard = []
-    start = (section_number - 1) * BUTTONS_PER_SECTION + 1
-    end = start + BUTTONS_PER_SECTION
+    start = page * BUTTONS_PER_PAGE + 1
+    end = min(start + BUTTONS_PER_PAGE, TOTAL_BUTTONS + 1)
 
-    row = []
     for i in range(start, end):
-        row.append(BUTTON_NAMES[i])
-        if len(row) == 2:
-            keyboard.append(row)
-            row = []
-    if row:
-        keyboard.append(row)
+        keyboard.append([InlineKeyboardButton(BUTTON_NAMES.get(i, f"زر {i}"), callback_data=f"btn{i}")])
 
-    keyboard.append(["🔙 رجوع", "🏠 الرئيسية"])
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("⬅ السابق", callback_data=f"page_{page-1}"))
+    if end <= TOTAL_BUTTONS:
+        nav.append(InlineKeyboardButton("التالي ➡", callback_data=f"page_{page+1}"))
+
+    if nav:
+        keyboard.append(nav)
+
+    return InlineKeyboardMarkup(keyboard)
 
 # =========================
 # /start
@@ -143,26 +135,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     cursor.execute("INSERT OR IGNORE INTO users (id) VALUES (?)", (user_id,))
     conn.commit()
-
     await update.message.reply_text(
-        "مرحباً بك 🔥 في بوت الأسئلة الشائعة:",
-        reply_markup=main_menu()
+        "مرحباً بك 🔥  في بوتنا للأسالة الشائعة عن الكلية التقنية :",
+        reply_markup=generate_keyboard(0)
     )
 
 # =========================
-# لوحة الأدمن
+# /admin
 # =========================
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
-
     cursor.execute("SELECT COUNT(*) FROM users")
     users = cursor.fetchone()[0]
-
     cursor.execute("SELECT SUM(clicks) FROM buttons")
     total_clicks = cursor.fetchone()[0] or 0
-
     await update.message.reply_text(
         f"📊 إحصائيات البوت:\n\n"
         f"👥 عدد المستخدمين: {users}\n"
@@ -176,12 +164,11 @@ async def edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
-
     if not context.args:
         await update.message.reply_text("اكتب رقم الزر بعد الأمر مثال:\n/edit 5")
         return
-
-    context.user_data["editing"] = f"btn{context.args[0]}"
+    button_id = f"btn{context.args[0]}"
+    context.user_data["editing"] = button_id
     await update.message.reply_text("أرسل الآن النص أو الصورة أو الفيديو لهذا الزر.")
 
 # =========================
@@ -191,15 +178,12 @@ async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
-
     if not context.args:
         await update.message.reply_text("اكتب رقم الزر بعد الأمر مثال:\n/delete 5")
         return
-
     button_id = f"btn{context.args[0]}"
     cursor.execute("DELETE FROM buttons WHERE button_id=?", (button_id,))
     conn.commit()
-
     await update.message.reply_text("🗑 تم حذف محتوى الزر بنجاح")
 
 # =========================
@@ -208,7 +192,6 @@ async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "editing" not in context.user_data:
         return
-
     button_id = context.user_data["editing"]
 
     if update.message.text:
@@ -216,14 +199,12 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
         INSERT OR REPLACE INTO buttons (button_id, type, text, clicks)
         VALUES (?, 'text', ?, 0)
         """, (button_id, update.message.text))
-
     elif update.message.photo:
         file_id = update.message.photo[-1].file_id
         cursor.execute("""
         INSERT OR REPLACE INTO buttons (button_id, type, file_id, caption, clicks)
         VALUES (?, 'photo', ?, ?, 0)
         """, (button_id, file_id, update.message.caption))
-
     elif update.message.video:
         file_id = update.message.video.file_id
         cursor.execute("""
@@ -233,81 +214,53 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     conn.commit()
     context.user_data.pop("editing")
-
     await update.message.reply_text("✅ تم حفظ المحتوى بنجاح")
 
 # =========================
 # التعامل مع الأزرار
 # =========================
-async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
 
-    if text == "❌ إخفاء الكيبورد":
-        await update.message.reply_text("تم الإخفاء", reply_markup=ReplyKeyboardRemove())
+    if data.startswith("page_"):
+        page = int(data.split("_")[1])
+        await query.edit_message_reply_markup(reply_markup=generate_keyboard(page))
         return
 
-    if text == "🏠 الرئيسية":
-        await update.message.reply_text("🏠 القائمة الرئيسية:", reply_markup=main_menu())
-        return
-
-    if text == "🔙 رجوع":
-        await update.message.reply_text("📚 الأقسام:", reply_markup=main_menu())
-        return
-
-    if text.startswith("📚 القسم"):
-        section_number = int(text.split()[-1])
-        await update.message.reply_text(
-            f"📂 القسم {section_number}",
-            reply_markup=section_keyboard(section_number)
-        )
-        return
-
-    button_number = None
-    for key, value in BUTTON_NAMES.items():
-        if value == text:
-            button_number = key
-            break
-
-    if not button_number:
-        return
-
-    button_id = f"btn{button_number}"
-
-    cursor.execute("SELECT * FROM buttons WHERE button_id=?", (button_id,))
+    cursor.execute("SELECT * FROM buttons WHERE button_id=?", (data,))
     button = cursor.fetchone()
 
     if button:
-        cursor.execute("UPDATE buttons SET clicks = clicks + 1 WHERE button_id=?", (button_id,))
+        cursor.execute("UPDATE buttons SET clicks = clicks + 1 WHERE button_id=?", (data,))
         conn.commit()
-
-        _, type_, file_id, text_data, caption, _ = button
-
+        _, type_, file_id, text, caption, _ = button
         if type_ == "text":
-            await update.message.reply_text(text_data)
+            await query.message.reply_text(text)
         elif type_ == "photo":
-            await update.message.reply_photo(file_id, caption=caption)
+            await query.message.reply_photo(file_id, caption=caption)
         elif type_ == "video":
-            await update.message.reply_video(file_id, caption=caption)
+            await query.message.reply_video(file_id, caption=caption)
     else:
-        await update.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
+        await query.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
 
 # =========================
-# تشغيل البوت
 # =========================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # إضافة الـ handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
     app.add_handler(CommandHandler("delete", delete_button))
-
-    # ترتيب الهاندلرز مهم
+    app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))
 
     print("🚀 Bot Started Successfully")
-    # تشغيل البوت مباشرة على Polling
+
+    # ✅ الحل النهائي: تشغيل Polling لتجنب مشاكل Webhook على Railway
     app.run_polling()
 
 if __name__ == "__main__":
