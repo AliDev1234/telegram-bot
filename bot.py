@@ -254,20 +254,24 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if text.startswith("📚 القسم"):
-        section_number = int(text.split()[-1])
-        await update.message.reply_text(
-            f"📂 القسم {section_number}",
-            reply_markup=section_keyboard(section_number)
-        )
+        try:
+            section_number = int(text.split()[-1])
+            await update.message.reply_text(
+                f"📂 القسم {section_number}",
+                reply_markup=section_keyboard(section_number)
+            )
+        except ValueError:
+            await update.message.reply_text("⚠ حدث خطأ في تحديد القسم")
         return
 
+    # التعامل مع محتوى الزر
     button_number = None
     for key, value in BUTTON_NAMES.items():
         if value == text:
             button_number = key
             break
 
-    if not button_number:
+    if button_number is None:
         return
 
     button_id = f"btn{button_number}"
@@ -281,12 +285,14 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         _, type_, file_id, text_data, caption, _ = button
 
-        if type_ == "text":
+        if type_ == "text" and text_data:
             await update.message.reply_text(text_data)
-        elif type_ == "photo":
+        elif type_ == "photo" and file_id:
             await update.message.reply_photo(file_id, caption=caption)
-        elif type_ == "video":
+        elif type_ == "video" and file_id:
             await update.message.reply_video(file_id, caption=caption)
+        else:
+            await update.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
     else:
         await update.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
 
@@ -301,7 +307,7 @@ def main():
     app.add_handler(CommandHandler("edit", edit_button))
     app.add_handler(CommandHandler("delete", delete_button))
 
-    # مهم: ترتيب الهاندلرز
+    # ترتيب الهاندلرز مهم
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))
 
