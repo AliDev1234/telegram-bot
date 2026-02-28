@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import logging
+import nest_asyncio
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -15,21 +16,25 @@ TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("❌ BOT_TOKEN غير موجود")
 
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # اتركه فارغ إذا تريد polling
-
 ADMIN_IDS = [1000660019, 1816045034]
 
 logging.basicConfig(level=logging.INFO)
 
 # =========================
-# قاعدة البيانات
+# إعداد قاعدة البيانات الجديدة
 # =========================
 DB_FOLDER = os.path.join(os.getcwd(), "db")
 os.makedirs(DB_FOLDER, exist_ok=True)
 DB_PATH = os.path.join(DB_FOLDER, "bot.db")
+
+# حذف أي قاعدة بيانات قديمة لتجنب مشاكل البيانات القديمة
+if os.path.exists(DB_PATH):
+    os.remove(DB_PATH)
+
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
 
+# إنشاء الجداول
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY)
 """)
@@ -46,7 +51,7 @@ CREATE TABLE IF NOT EXISTS buttons (
 conn.commit()
 
 # =========================
-# الأزرار الـ50
+# الأزرار والأقسام
 # =========================
 BUTTONS_PER_PAGE = 10
 TOTAL_BUTTONS = 50
@@ -130,7 +135,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cursor.execute("INSERT OR IGNORE INTO users (id) VALUES (?)", (user_id,))
     conn.commit()
     await update.message.reply_text(
-        "مرحباً بك 🔥  في بوتنا للأسالة الشائعة عن الكلية التقنية :",
+        "مرحباً بك 🔥 في بوتنا للأسالة الشائعة عن الكلية التقنية :",
         reply_markup=generate_keyboard(0)
     )
 
@@ -223,9 +228,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Main
 # =========================
 async def main():
+    nest_asyncio.apply()
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # إضافة Handlers
+    # Handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
@@ -233,17 +239,11 @@ async def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
 
-    # حذف أي Webhook قديم لتجنب Conflict
+    # حذف أي Webhook قديم لتجنب أي تعارض
     await app.bot.delete_webhook(drop_pending_updates=True)
 
-    # تشغيل البوت عبر Webhook أو Polling
-    if WEBHOOK_URL:
-        await app.bot.set_webhook(WEBHOOK_URL)
-        print("🚀 Bot started via Webhook")
-        await asyncio.Event().wait()  # يبقى البوت شغال
-    else:
-        print("🚀 Bot started via Polling")
-        await app.run_polling()
+    print("🚀 Bot Started Successfully")
+    await app.run_polling(drop_pending_updates=True)  # تأكيد حذف أي GetUpdates قديم
 
 if __name__ == "__main__":
     asyncio.run(main())
