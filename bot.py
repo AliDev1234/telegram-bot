@@ -19,6 +19,11 @@ if not TOKEN:
 
 ADMIN_IDS = [1000660019, 1816045034]
 
+# عنوان سيرفرك في Railway، متغير ENV اسمه RAILWAY_URL
+WEBHOOK_URL = os.environ.get("RAILWAY_URL")
+if not WEBHOOK_URL:
+    raise ValueError("❌ RAILWAY_URL غير موجود في Variables")
+
 logging.basicConfig(level=logging.INFO)
 
 # =========================
@@ -47,11 +52,10 @@ CREATE TABLE IF NOT EXISTS buttons (
 conn.commit()
 
 # =========================
-# الإعدادات العامة
+# إعدادات الأزرار
 # =========================
 BUTTONS_PER_SECTION = 10
-TOTAL_BUTTONS = 50
-
+# استرجاع كل الأزرار كما في كودك الأصلي
 BUTTON_NAMES = {
     1: "طريقة التقديم على الكليات التقنية لعام 1446 (جديد)",
     2: "شرح للمستجدين (المقبولين) بالكليات التقنية",
@@ -125,10 +129,11 @@ def section_keyboard(section_number):
 
     row = []
     for i in range(start, end):
-        row.append(BUTTON_NAMES[i])
-        if len(row) == 2:
-            keyboard.append(row)
-            row = []
+        if i in BUTTON_NAMES:
+            row.append(BUTTON_NAMES[i])
+            if len(row) == 2:
+                keyboard.append(row)
+                row = []
     if row:
         keyboard.append(row)
 
@@ -136,124 +141,86 @@ def section_keyboard(section_number):
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 # =========================
-# /start
+# Handlers
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     cursor.execute("INSERT OR IGNORE INTO users (id) VALUES (?)", (user_id,))
     conn.commit()
-
     await update.message.reply_text(
         "مرحباً بك 🔥 في بوت الأسئلة الشائعة:",
         reply_markup=main_menu()
     )
 
-# =========================
-# لوحة الأدمن
-# =========================
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
-
     cursor.execute("SELECT COUNT(*) FROM users")
     users = cursor.fetchone()[0]
-
     cursor.execute("SELECT SUM(clicks) FROM buttons")
     total_clicks = cursor.fetchone()[0] or 0
-
     await update.message.reply_text(
         f"📊 إحصائيات البوت:\n\n"
         f"👥 عدد المستخدمين: {users}\n"
         f"🔥 مجموع الضغطات: {total_clicks}"
     )
 
-# =========================
-# /edit
-# =========================
 async def edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
-
     if not context.args:
         await update.message.reply_text("اكتب رقم الزر بعد الأمر مثال:\n/edit 5")
         return
-
     context.user_data["editing"] = f"btn{context.args[0]}"
     await update.message.reply_text("أرسل الآن النص أو الصورة أو الفيديو لهذا الزر.")
 
-# =========================
-# /delete
-# =========================
 async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
-
     if not context.args:
         await update.message.reply_text("اكتب رقم الزر بعد الأمر مثال:\n/delete 5")
         return
-
     button_id = f"btn{context.args[0]}"
     cursor.execute("DELETE FROM buttons WHERE button_id=?", (button_id,))
     conn.commit()
-
     await update.message.reply_text("🗑 تم حذف محتوى الزر بنجاح")
 
-# =========================
-# استقبال محتوى الأدمن
-# =========================
 async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "editing" not in context.user_data:
         return
-
     button_id = context.user_data["editing"]
-
     if update.message.text:
         cursor.execute("""
         INSERT OR REPLACE INTO buttons (button_id, type, text, clicks)
         VALUES (?, 'text', ?, 0)
         """, (button_id, update.message.text))
-
     elif update.message.photo:
         file_id = update.message.photo[-1].file_id
         cursor.execute("""
         INSERT OR REPLACE INTO buttons (button_id, type, file_id, caption, clicks)
         VALUES (?, 'photo', ?, ?, 0)
         """, (button_id, file_id, update.message.caption))
-
     elif update.message.video:
         file_id = update.message.video.file_id
         cursor.execute("""
         INSERT OR REPLACE INTO buttons (button_id, type, file_id, caption, clicks)
         VALUES (?, 'video', ?, ?, 0)
         """, (button_id, file_id, update.message.caption))
-
     conn.commit()
     context.user_data.pop("editing")
-
     await update.message.reply_text("✅ تم حفظ المحتوى بنجاح")
 
-# =========================
-# التعامل مع الأزرار
-# =========================
 async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-
     if text == "❌ إخفاء الكيبورد":
         await update.message.reply_text("تم الإخفاء", reply_markup=ReplyKeyboardRemove())
         return
-
-    if text == "🏠 الرئيسية":
+    if text == "🏠 الرئيسية" or text == "🔙 رجوع":
         await update.message.reply_text("🏠 القائمة الرئيسية:", reply_markup=main_menu())
         return
-
-    if text == "🔙 رجوع":
-        await update.message.reply_text("📚 الأقسام:", reply_markup=main_menu())
-        return
-
-    # التعامل مع الأقسام
     for section in range(1, 6):
         if text == f"📚 القسم {section}":
             await update.message.reply_text(
@@ -261,28 +228,20 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=section_keyboard(section)
             )
             return
-
-    # التعامل مع محتوى الأزرار داخل الأقسام
     button_number = None
     for key, value in BUTTON_NAMES.items():
         if text == value:
             button_number = key
             break
-
     if button_number is None:
         return
-
     button_id = f"btn{button_number}"
-
     cursor.execute("SELECT * FROM buttons WHERE button_id=?", (button_id,))
     button = cursor.fetchone()
-
     if button:
         cursor.execute("UPDATE buttons SET clicks = clicks + 1 WHERE button_id=?", (button_id,))
         conn.commit()
-
         _, type_, file_id, text_data, caption, _ = button
-
         if type_ == "text" and text_data:
             await update.message.reply_text(text_data)
         elif type_ == "photo" and file_id:
@@ -295,7 +254,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
 
 # =========================
-# تشغيل البوت
+# تشغيل البوت عبر Webhook
 # =========================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
@@ -304,13 +263,20 @@ def main():
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
     app.add_handler(CommandHandler("delete", delete_button))
-
-    # ترتيب الهاندلرز مهم
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_buttons))
 
-    print("🚀 Bot Started Successfully")
-    app.run_polling()
+    # إزالة أي Webhook سابق
+    import asyncio
+    asyncio.run(app.bot.delete_webhook())
+
+    # إعداد Webhook للـ Railway
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", "8080")),
+        webhook_url=f"{WEBHOOK_URL}/{TOKEN}"
+    )
+    print("🚀 Bot Started Successfully via Webhook")
 
 if __name__ == "__main__":
     main()
