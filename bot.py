@@ -26,9 +26,15 @@ logging.basicConfig(level=logging.INFO)
 DB_FOLDER = os.path.join(os.getcwd(), "db")
 os.makedirs(DB_FOLDER, exist_ok=True)
 DB_PATH = os.path.join(DB_FOLDER, "bot.db")
+
+# حذف القاعدة القديمة وإنشاء جديدة
+if os.path.exists(DB_PATH):
+    os.remove(DB_PATH)
+
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
 
+# إنشاء الجداول
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY)
 """)
@@ -45,7 +51,7 @@ CREATE TABLE IF NOT EXISTS buttons (
 conn.commit()
 
 # =========================
-# جميع الأزرار
+# جميع الأزرار والأقسام
 # =========================
 BUTTON_NAMES = {
     1: "طريقة التقديم على الكليات التقنية لعام 1446 (جديد)",
@@ -100,9 +106,6 @@ BUTTON_NAMES = {
     50: "معادلة المقررات",
 }
 
-# =========================
-# تعريف المجموعات
-# =========================
 GROUPS = {
     1: {"name": "المجموعة 1", "buttons": list(range(1, 11))},
     2: {"name": "المجموعة 2", "buttons": list(range(11, 21))},
@@ -112,26 +115,20 @@ GROUPS = {
 }
 
 # =========================
-# لوحة الأقسام
+# لوحة الأقسام والأزرار
 # =========================
 def generate_group_keyboard():
-    keyboard = [
-        [InlineKeyboardButton(group["name"], callback_data=f"group_{gid}")]
-        for gid, group in GROUPS.items()
-    ]
+    keyboard = [[InlineKeyboardButton(g["name"], callback_data=f"group_{gid}")]
+                for gid, g in GROUPS.items()]
     return InlineKeyboardMarkup(keyboard)
 
-# =========================
-# لوحة أزرار داخل المجموعة
-# =========================
 def generate_buttons_keyboard(group_id):
     keyboard = []
     group = GROUPS.get(group_id)
     if not group:
-        return generate_group_keyboard()  # fallback
+        return generate_group_keyboard()
     for btn_id in group["buttons"]:
         keyboard.append([InlineKeyboardButton(BUTTON_NAMES[btn_id], callback_data=f"btn{btn_id}")])
-    # زر العودة
     keyboard.append([InlineKeyboardButton("⬅ رجوع للقائمة الرئيسية", callback_data="back_to_groups")])
     return InlineKeyboardMarkup(keyboard)
 
@@ -142,10 +139,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     cursor.execute("INSERT OR IGNORE INTO users (id) VALUES (?)", (user_id,))
     conn.commit()
-    await update.message.reply_text(
-        "مرحباً بك 🔥 في بوت الأسئلة الشائعة عن الكلية التقنية :",
-        reply_markup=generate_group_keyboard()
-    )
+    await update.message.reply_text("مرحباً بك 🔥 في بوت الأسئلة الشائعة عن الكلية التقنية :",
+                                    reply_markup=generate_group_keyboard())
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
@@ -156,9 +151,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cursor.execute("SELECT SUM(clicks) FROM buttons")
     total_clicks = cursor.fetchone()[0] or 0
     await update.message.reply_text(
-        f"📊 إحصائيات البوت:\n\n"
-        f"👥 عدد المستخدمين: {users}\n"
-        f"🔥 مجموع الضغطات: {total_clicks}"
+        f"📊 إحصائيات البوت:\n👥 عدد المستخدمين: {users}\n🔥 مجموع الضغطات: {total_clicks}"
     )
 
 async def edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -254,6 +247,7 @@ async def main():
 
     await app.bot.delete_webhook(drop_pending_updates=True)
 
+    print("✅ قاعدة البيانات الجديدة تم إنشاؤها في db/bot.db")
     print("🚀 Bot Started Successfully")
     await app.run_polling()
 
