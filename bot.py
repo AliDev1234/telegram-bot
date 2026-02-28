@@ -253,21 +253,19 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("📚 الأقسام:", reply_markup=main_menu())
         return
 
-    if text.startswith("📚 القسم"):
-        try:
-            section_number = int(text.split()[-1])
+    # التعامل مع الأقسام
+    for section in range(1, 6):
+        if text == f"📚 القسم {section}":
             await update.message.reply_text(
-                f"📂 القسم {section_number}",
-                reply_markup=section_keyboard(section_number)
+                f"📂 القسم {section}",
+                reply_markup=section_keyboard(section)
             )
-        except ValueError:
-            await update.message.reply_text("⚠ حدث خطأ في تحديد القسم")
-        return
+            return
 
-    # التعامل مع محتوى الزر
+    # التعامل مع محتوى الأزرار داخل الأقسام
     button_number = None
     for key, value in BUTTON_NAMES.items():
-        if value == text:
+        if text == value:
             button_number = key
             break
 
