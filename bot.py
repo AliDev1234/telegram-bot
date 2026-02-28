@@ -289,14 +289,10 @@ async def main():
     await app.run_polling()
 
 if __name__ == "__main__":
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
+    import asyncio
+    import nest_asyncio
 
-    if loop and loop.is_running():
-        # لو الـ loop شغال مسبقًا (مثلاً في Railway)، نستخدم create_task
-        asyncio.create_task(main())
-    else:
-        # لو لا يوجد loop شغال، نستخدم run
-        asyncio.run(main())
+    # السماح بتداخل الحلقات لتجنب الخطأ في Railway أو بيئة Python الحالية
+    nest_asyncio.apply()
+
+    asyncio.get_event_loop().run_until_complete(main())
