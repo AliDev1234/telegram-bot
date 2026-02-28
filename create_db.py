@@ -1,25 +1,29 @@
 import os
 import sqlite3
 
-# إنشاء مجلد db إذا لم يكن موجود
-os.makedirs("db", exist_ok=True)
+DB_FOLDER = os.path.join(os.getcwd(), "db")
+os.makedirs(DB_FOLDER, exist_ok=True)
+DB_PATH = os.path.join(DB_FOLDER, "bot.db")
 
-# مسار قاعدة البيانات
-DB_PATH = os.path.join("db", "bot.db")
+# حذف قاعدة البيانات القديمة إذا وجدت
+if os.path.exists(DB_PATH):
+    os.remove(DB_PATH)
+    print("🗑 تم حذف قاعدة البيانات القديمة.")
 
-# إنشاء الاتصال بالقاعدة
+# إنشاء قاعدة بيانات جديدة
 conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
-# إنشاء الجداول
+# جدول المستخدمين
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id INTEGER PRIMARY KEY
 )
 """)
 
+# جدول الأزرار
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS buttons (
+CREATE TABLE buttons (
     button_id TEXT PRIMARY KEY,
     type TEXT,
     file_id TEXT,
@@ -31,5 +35,4 @@ CREATE TABLE IF NOT EXISTS buttons (
 
 conn.commit()
 conn.close()
-
-print("✅ قاعدة البيانات تم إنشاؤها بنجاح في db/bot.db")
+print(f"✅ قاعدة البيانات تم إنشاؤها بنجاح في {DB_PATH}")
