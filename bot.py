@@ -265,9 +265,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
 
 # =========================
+# تشغيل البوت
 # =========================
 import asyncio
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
@@ -289,4 +289,14 @@ async def main():
     await app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        # لو الـ loop شغال مسبقًا (مثلاً في Railway)، نستخدم create_task
+        asyncio.create_task(main())
+    else:
+        # لو لا يوجد loop شغال، نستخدم run
+        asyncio.run(main())
