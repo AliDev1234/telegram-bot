@@ -1,7 +1,6 @@
 import os
 import sqlite3
 import logging
-import nest_asyncio
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -12,7 +11,7 @@ from telegram.ext import (
 # =========================
 # إعدادات البوت
 # =========================
-TOKEN = os.environ.get("BOT_TOKEN")  # توكين البوت من متغيرات Railway
+TOKEN = os.environ.get("BOT_TOKEN")  # توكين البوت من متغيرات البيئة
 if not TOKEN:
     raise ValueError("❌ BOT_TOKEN غير موجود")
 
@@ -219,13 +218,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
 
 # =========================
-# Main
+# Main (محسنة للـRailway)
 # =========================
 async def main():
-    nest_asyncio.apply()  # لتجنب مشاكل Event Loop
+    # استخدام long_polling مباشرة بدون Webhook لتجنب مشاكل InvalidURL
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # إضافة Handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
@@ -233,11 +231,8 @@ async def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
 
-    # حذف أي Webhook قديم لتجنب Conflict
-    await app.bot.delete_webhook(drop_pending_updates=True)
-
     print("🚀 Bot Started Successfully")
-    await app.run_polling()
+    await app.run_polling(poll_interval=3)  # poll_interval لتجنب Timeout
 
 if __name__ == "__main__":
     asyncio.run(main())
