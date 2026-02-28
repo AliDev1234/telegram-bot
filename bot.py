@@ -12,28 +12,30 @@ from telegram.ext import (
 )
 
 # =========================
-# حذف قاعدة البيانات القديمة عند التشغيل (للتحديث التلقائي)
-# =========================
-if os.path.exists("bot.db"):
-    os.remove("bot.db")
-
-# =========================
 # الإعدادات
 # =========================
-TOKEN = os.environ.get("BOT_TOKEN")
+TOKEN = os.environ.get("BOT_TOKEN")  # توكين البوت من متغيرات Railway
 if not TOKEN:
     raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
 
-ADMIN_IDS = [1000660019, 1816045034]  # الأدمنين
+ADMIN_IDS = [1000660019, 1816045034]  # هنا ضع الـ Telegram IDs للأدمنين
 
 logging.basicConfig(level=logging.INFO)
 
 # =========================
 # قاعدة البيانات
 # =========================
-conn = sqlite3.connect("bot.db", check_same_thread=False)
+DB_PATH = os.path.join(os.getcwd(), "bot.db")  # مسار آمن للكتابة على Railway
+
+# حذف أي قاعدة بيانات قديمة لضمان إنشاء جديدة
+if os.path.exists(DB_PATH):
+    os.remove(DB_PATH)
+
+# إنشاء الاتصال بالقاعدة
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
 
+# إنشاء الجداول إذا لم تكن موجودة
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY
