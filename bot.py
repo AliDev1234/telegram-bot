@@ -11,11 +11,13 @@ from telegram.ext import (
 # =========================
 # إعدادات البوت
 # =========================
-TOKEN = os.environ.get("BOT_TOKEN")  # توكين البوت من متغيرات البيئة
+TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
     raise ValueError("❌ BOT_TOKEN غير موجود")
 
-ADMIN_IDS = [1000660019, 1816045034]  # IDs الأدمن
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # اتركه فارغ إذا تريد polling
+
+ADMIN_IDS = [1000660019, 1816045034]
 
 logging.basicConfig(level=logging.INFO)
 
@@ -218,12 +220,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
 
 # =========================
-# Main (محسنة للـRailway)
+# Main
 # =========================
 async def main():
-    # استخدام long_polling مباشرة بدون Webhook لتجنب مشاكل InvalidURL
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # إضافة Handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
@@ -231,8 +233,17 @@ async def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
 
-    print("🚀 Bot Started Successfully")
-    await app.run_polling(poll_interval=3)  # poll_interval لتجنب Timeout
+    # حذف أي Webhook قديم لتجنب Conflict
+    await app.bot.delete_webhook(drop_pending_updates=True)
+
+    # تشغيل البوت عبر Webhook أو Polling
+    if WEBHOOK_URL:
+        await app.bot.set_webhook(WEBHOOK_URL)
+        print("🚀 Bot started via Webhook")
+        await asyncio.Event().wait()  # يبقى البوت شغال
+    else:
+        print("🚀 Bot started via Polling")
+        await app.run_polling()
 
 if __name__ == "__main__":
     asyncio.run(main())
