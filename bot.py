@@ -1,47 +1,37 @@
 import os
 import sqlite3
 import logging
+import nest_asyncio
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    CallbackQueryHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
+    ApplicationBuilder, CommandHandler, CallbackQueryHandler,
+    MessageHandler, ContextTypes, filters
 )
 
 # =========================
-# الإعدادات
+# إعدادات البوت
 # =========================
 TOKEN = os.environ.get("BOT_TOKEN")  # توكين البوت من متغيرات Railway
 if not TOKEN:
-    raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
+    raise ValueError("❌ BOT_TOKEN غير موجود")
 
-ADMIN_IDS = [1000660019, 1816045034]  # هنا ضع الـ Telegram IDs للأدمنين
+ADMIN_IDS = [1000660019, 1816045034]  # IDs الأدمن
 
 logging.basicConfig(level=logging.INFO)
 
 # =========================
-# قاعدة البيانات داخل مجلد db
+# قاعدة البيانات
 # =========================
 DB_FOLDER = os.path.join(os.getcwd(), "db")
 os.makedirs(DB_FOLDER, exist_ok=True)
-
 DB_PATH = os.path.join(DB_FOLDER, "bot.db")
-
-if os.path.exists(DB_PATH):
-    os.remove(DB_PATH)
-
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
 
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY
-)
+CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY)
 """)
-
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS buttons (
     button_id TEXT PRIMARY KEY,
@@ -52,11 +42,10 @@ CREATE TABLE IF NOT EXISTS buttons (
     clicks INTEGER DEFAULT 0
 )
 """)
-
 conn.commit()
 
 # =========================
-# الأقسام الـ50 والأزرار
+# الأزرار الـ50
 # =========================
 BUTTONS_PER_PAGE = 10
 TOTAL_BUTTONS = 50
@@ -114,6 +103,9 @@ BUTTON_NAMES = {
     50: "معادلة المقررات",
 }
 
+# =========================
+# توليد لوحة الأزرار
+# =========================
 def generate_keyboard(page=0):
     keyboard = []
     start = page * BUTTONS_PER_PAGE + 1
@@ -130,7 +122,7 @@ def generate_keyboard(page=0):
     return InlineKeyboardMarkup(keyboard)
 
 # =========================
-# Handlers (start, admin, edit, delete, receive_content, button_handler)
+# Handlers
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -182,7 +174,6 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "editing" not in context.user_data:
         return
     button_id = context.user_data["editing"]
-
     if update.message.text:
         cursor.execute("""
         INSERT OR REPLACE INTO buttons (button_id, type, text, clicks)
@@ -200,7 +191,6 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
         INSERT OR REPLACE INTO buttons (button_id, type, file_id, caption, clicks)
         VALUES (?, 'video', ?, ?, 0)
         """, (button_id, file_id, update.message.caption))
-
     conn.commit()
     context.user_data.pop("editing")
     await update.message.reply_text("✅ تم حفظ المحتوى بنجاح")
@@ -209,15 +199,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
-
     if data.startswith("page_"):
         page = int(data.split("_")[1])
         await query.edit_message_reply_markup(reply_markup=generate_keyboard(page))
         return
-
     cursor.execute("SELECT * FROM buttons WHERE button_id=?", (data,))
     button = cursor.fetchone()
-
     if button:
         cursor.execute("UPDATE buttons SET clicks = clicks + 1 WHERE button_id=?", (data,))
         conn.commit()
@@ -232,14 +219,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
 
 # =========================
-# تشغيل البوت على Railway باستخدام Webhook
+# Main
 # =========================
-import asyncio
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-
 async def main():
+    nest_asyncio.apply()  # لتجنب مشاكل Event Loop
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # إضافة Handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
@@ -247,23 +233,11 @@ async def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
 
-    print("🚀 Bot Started Successfully")
-
-    # حذف أي Webhook قديم قبل بدء البوت
+    # حذف أي Webhook قديم لتجنب Conflict
     await app.bot.delete_webhook(drop_pending_updates=True)
 
-    # تشغيل Webhook بدلاً من Polling لتجنب Conflict
-    WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # ضع رابط الـ webhook هنا من Railway
-    if not WEBHOOK_URL:
-        raise ValueError("❌ WEBHOOK_URL غير موجود في متغيرات Railway")
-    await app.start()
-    await app.updater.start_webhook(
-        listen="0.0.0.0",
-        port=int(os.environ.get("PORT", 8443)),
-        url_path=TOKEN,
-        webhook_url=f"{WEBHOOK_URL}/{TOKEN}"
-    )
-    await app.updater.idle()
+    print("🚀 Bot Started Successfully")
+    await app.run_polling()
 
 if __name__ == "__main__":
     asyncio.run(main())
