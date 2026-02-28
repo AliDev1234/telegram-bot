@@ -247,7 +247,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # =========================
 # =========================
-def main():
+import asyncio
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+
+async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     # إضافة الـ handlers
@@ -260,8 +263,11 @@ def main():
 
     print("🚀 Bot Started Successfully")
 
-    # ✅ الحل النهائي: تشغيل Polling لتجنب مشاكل Webhook على Railway
-    app.run_polling()
+    # حذف أي webhook قديم قبل polling
+    await app.bot.delete_webhook(drop_pending_updates=True)
+
+    # تشغيل polling للبوت
+    await app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
