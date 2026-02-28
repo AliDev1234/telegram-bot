@@ -23,11 +23,14 @@ ADMIN_IDS = [1000660019, 1816045034]  # هنا ضع الـ Telegram IDs للأد
 logging.basicConfig(level=logging.INFO)
 
 # =========================
-# قاعدة البيانات
+# قاعدة البيانات داخل مجلد db
 # =========================
-DB_PATH = os.path.join(os.getcwd(), "bot.db")  # مسار آمن للكتابة على Railway
+DB_FOLDER = os.path.join(os.getcwd(), "db")
+os.makedirs(DB_FOLDER, exist_ok=True)  # إنشاء المجلد إذا لم يكن موجود
 
-# حذف أي قاعدة بيانات قديمة لضمان إنشاء جديدة
+DB_PATH = os.path.join(DB_FOLDER, "bot.db")  # قاعدة البيانات داخل المجلد db
+
+# حذف أي قاعدة بيانات قديمة لضمان إنشاء جديدة (اختياري)
 if os.path.exists(DB_PATH):
     os.remove(DB_PATH)
 
