@@ -23,17 +23,14 @@ logging.basicConfig(level=logging.INFO)
 # =========================
 # قاعدة البيانات
 # =========================
-DB_FOLDER = os.path.join(os.getcwd(), "db")
+DB_FOLDER = os.path.join(os.getcwd(), "db")  # أو "data" إذا تريد
 os.makedirs(DB_FOLDER, exist_ok=True)
 DB_PATH = os.path.join(DB_FOLDER, "bot.db")
-
-# حذف القاعدة القديمة وإنشاء جديدة
-
 
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
 
-# إنشاء الجداول
+# إنشاء الجداول إذا لم تكن موجودة
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY)
 """)
