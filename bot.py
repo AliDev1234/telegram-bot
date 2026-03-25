@@ -28,8 +28,7 @@ os.makedirs(DB_FOLDER, exist_ok=True)
 DB_PATH = os.path.join(DB_FOLDER, "bot.db")
 
 # حذف القاعدة القديمة وإنشاء جديدة
-if os.path.exists(DB_PATH):
-    os.remove(DB_PATH)
+
 
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 cursor = conn.cursor()
