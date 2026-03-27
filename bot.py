@@ -1,5 +1,4 @@
-import time
-print("Bot version:", time.time())
+print("NEW VERSION 123")
 import os
 import json
 import logging
