@@ -1,3 +1,5 @@
+import time
+print("Bot version:", time.time())
 import os
 import json
 import logging
