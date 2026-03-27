@@ -1,3 +1,4 @@
+print("🚀 NEW DEPLOY TEST 999")
 print("NEW VERSION 123")
 import os
 import json
