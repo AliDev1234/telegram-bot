@@ -75,7 +75,6 @@ def generate_keyboard(page=0):
                 callback_data=f"btn{i}"
             )
         ])
-
     nav = []
     if page > 0:
         nav.append(InlineKeyboardButton("⬅ السابق", callback_data=f"page_{page-1}"))
@@ -157,30 +156,27 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     button_id = context.user_data["editing"]
 
-    # إنشاء الزر إذا لم يكن موجود
-    if button_id not in buttons_data:
-        buttons_data[button_id] = {"clicks": 0}
-
-    # تحديد نوع المحتوى وحفظه
     if update.message.text:
-        buttons_data[button_id].update({
+        buttons_data[button_id] = {
             "type": "text",
-            "text": update.message.text
-        })
+            "text": update.message.text,
+            "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
+        }
     elif update.message.photo:
-        buttons_data[button_id].update({
+        buttons_data[button_id] = {
             "type": "photo",
             "file_id": update.message.photo[-1].file_id,
-            "caption": update.message.caption
-        })
+            "caption": update.message.caption,
+            "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
+        }
     elif update.message.video:
-        buttons_data[button_id].update({
+        buttons_data[button_id] = {
             "type": "video",
             "file_id": update.message.video.file_id,
-            "caption": update.message.caption
-        })
+            "caption": update.message.caption,
+            "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
+        }
 
-    # حفظ جميع البيانات فورًا
     with open(BUTTONS_FILE, "w", encoding="utf-8") as f:
         json.dump(buttons_data, f, ensure_ascii=False, indent=4)
 
@@ -221,7 +217,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    # إضافة جميع الهاندلرز
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
@@ -230,7 +225,7 @@ async def main():
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
 
     print("🚀 البوت يعمل الآن على Railway مع حل /edit")
-    await app.run_polling()
+    await app.run_polling(drop_pending_updates=True)  # مهم: يحل مشاكل getUpdates 409
 
 if __name__ == "__main__":
     asyncio.run(main())
