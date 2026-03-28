@@ -34,9 +34,6 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# =========================
-# حذف Webhook
-# =========================
 bot = Bot(TOKEN)
 
 async def clear_webhook():
@@ -47,18 +44,15 @@ async def clear_webhook():
         print(e)
 
 # =========================
-# DATABASE باستخدام JSON مضمون
+# DATABASE
 # =========================
-DB_FILE = "buttons.json"  # تأكد أن الاسم صغير تماماً
+DB_FILE = "buttons.json"
 
 def load_data():
     if not os.path.exists(DB_FILE):
         return {}
     with open(DB_FILE, "r", encoding="utf-8") as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return {}
+        return json.load(f)
 
 def save_data(data):
     with open(DB_FILE, "w", encoding="utf-8") as f:
@@ -66,14 +60,12 @@ def save_data(data):
 
 def save_button(button_id, type_, content, caption):
     data = load_data()
-    # حافظ على عدد الضغطات إذا كانت موجودة
-    clicks = data.get(button_id, {}).get("clicks", 0)
     data[button_id] = {
         "type": type_,
         "file_id": content if type_ != "text" else None,
         "text": content if type_ == "text" else None,
         "caption": caption,
-        "clicks": clicks
+        "clicks": data.get(button_id, {}).get("clicks", 0)
     }
     save_data(data)
 
@@ -100,7 +92,7 @@ def delete_button(button_id):
         save_data(data)
 
 # =========================
-# الأزرار
+# الأقسام
 # =========================
 BUTTONS_PER_PAGE = 10
 TOTAL_BUTTONS = 50
@@ -137,23 +129,17 @@ def generate_keyboard(page=0):
     return InlineKeyboardMarkup(keyboard)
 
 # =========================
-# /start
+# الأوامر
 # =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("مرحباً بك 🔥 اختر أحد الأقسام:", reply_markup=generate_keyboard(0))
 
-# =========================
-# /admin
-# =========================
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         return await update.message.reply_text("❌ للأدمن فقط")
     total_buttons, total_clicks = get_stats()
     await update.message.reply_text(f"📊 الإحصائيات:\nالأزرار: {total_buttons}\nالضغطات: {total_clicks}")
 
-# =========================
-# /edit
-# =========================
 async def edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         return await update.message.reply_text("❌ للأدمن فقط")
@@ -162,9 +148,6 @@ async def edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["editing"] = f"btn{context.args[0]}"
     await update.message.reply_text("أرسل المحتوى الآن (نص، صورة، أو فيديو)")
 
-# =========================
-# /delete
-# =========================
 async def delete_button_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         return
@@ -181,12 +164,14 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     button_id = context.user_data["editing"]
     old_button = get_button(button_id) or {}
+
     if update.message.text:
-        save_button(button_id, "text", update.message.text, old_button.get("caption"))
+        save_button(button_id, "text", update.message.text, old_button.get("caption", ""))
     elif update.message.photo:
-        save_button(button_id, "photo", update.message.photo[-1].file_id, update.message.caption or old_button.get("caption"))
+        save_button(button_id, "photo", update.message.photo[-1].file_id, update.message.caption or old_button.get("caption", ""))
     elif update.message.video:
-        save_button(button_id, "video", update.message.video.file_id, update.message.caption or old_button.get("caption"))
+        save_button(button_id, "video", update.message.video.file_id, update.message.caption or old_button.get("caption", ""))
+
     context.user_data.pop("editing")
     await update.message.reply_text("✅ تم الحفظ")
 
@@ -197,12 +182,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
+
     if data.startswith("page_"):
         page = int(data.split("_")[1])
         return await query.edit_message_reply_markup(reply_markup=generate_keyboard(page))
+
     button = get_button(data)
     if not button:
         return await query.message.reply_text("⚠ لا يوجد محتوى")
+
     add_click(data)
     if button["type"] == "text":
         await query.message.reply_text(button["text"])
@@ -223,6 +211,7 @@ async def main():
     app.add_handler(CommandHandler("delete", delete_button_cmd))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.ALL, receive_content))
+
     print("🚀 البوت يعمل بدون مشاكل")
     await app.run_polling(drop_pending_updates=True)
 
