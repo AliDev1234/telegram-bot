@@ -1,17 +1,8 @@
 print("🔥 تعديل للتجربة")
 import os
 import sys
-
-# =========================
-# تشغيل فقط على Railway
-# =========================
-# Railway يضع متغير البيئة "RAILWAY" بشكل افتراضي
-if not os.getenv("RAILWAY"):
-    print("⚠ البوت لا يعمل إلا على Railway. إنهاء العملية.")
-    sys.exit(0)
 import json
 import logging
-import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -21,6 +12,13 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+
+# =========================
+# تشغيل فقط على Railway
+# =========================
+if not os.getenv("RAILWAY"):
+    print("⚠ البوت لا يعمل إلا على Railway. إنهاء العملية.")
+    sys.exit(0)
 
 # =========================
 # الإعدادات
@@ -42,7 +40,7 @@ if os.path.exists(BUTTONS_FILE):
     with open(BUTTONS_FILE, "r", encoding="utf-8") as f:
         buttons_data = json.load(f)
 else:
-    buttons_data = {}  # إذا لم يكن هناك ملف مسبقًا
+    buttons_data = {}
 
 # =========================
 # أسماء الأقسام الـ50
@@ -69,7 +67,6 @@ def generate_keyboard(page=0):
     keyboard = []
     start = page * BUTTONS_PER_PAGE + 1
     end = min(start + BUTTONS_PER_PAGE, TOTAL_BUTTONS + 1)
-
     for i in range(start, end):
         keyboard.append([
             InlineKeyboardButton(
@@ -77,16 +74,13 @@ def generate_keyboard(page=0):
                 callback_data=f"btn{i}"
             )
         ])
-
     nav = []
     if page > 0:
         nav.append(InlineKeyboardButton("⬅ السابق", callback_data=f"page_{page-1}"))
     if end <= TOTAL_BUTTONS:
         nav.append(InlineKeyboardButton("التالي ➡", callback_data=f"page_{page+1}"))
-
     if nav:
         keyboard.append(nav)
-
     return InlineKeyboardMarkup(keyboard)
 
 # =========================
@@ -105,10 +99,8 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
-
     total_buttons = len(buttons_data)
     total_clicks = sum(b.get("clicks", 0) for b in buttons_data.values())
-
     await update.message.reply_text(
         f"📊 إحصائيات البوت:\n\n"
         f"🔥 عدد الأزرار المخزنة: {total_buttons}\n"
@@ -122,14 +114,11 @@ async def edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
-
     if not context.args:
         await update.message.reply_text("اكتب رقم الزر بعد الأمر مثال:\n/edit 5")
         return
-
     button_id = f"btn{context.args[0]}"
     context.user_data["editing"] = button_id
-
     await update.message.reply_text("أرسل الآن النص أو الصورة أو الفيديو لهذا الزر.")
 
 # =========================
@@ -139,17 +128,14 @@ async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
-
     if not context.args:
         await update.message.reply_text("اكتب رقم الزر بعد الأمر مثال:\n/delete 5")
         return
-
     button_id = f"btn{context.args[0]}"
     if button_id in buttons_data:
         buttons_data.pop(button_id)
         with open(BUTTONS_FILE, "w", encoding="utf-8") as f:
             json.dump(buttons_data, f, ensure_ascii=False, indent=4)
-
     await update.message.reply_text("🗑 تم حذف محتوى الزر بنجاح")
 
 # =========================
@@ -158,10 +144,7 @@ async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "editing" not in context.user_data:
         return
-
     button_id = context.user_data["editing"]
-
-    # تحديد نوع المحتوى وحفظه في القاموس
     if update.message.text:
         buttons_data[button_id] = {
             "type": "text",
@@ -182,11 +165,8 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "caption": update.message.caption,
             "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
         }
-
-    # حفظ فورًا في الملف
     with open(BUTTONS_FILE, "w", encoding="utf-8") as f:
         json.dump(buttons_data, f, ensure_ascii=False, indent=4)
-
     context.user_data.pop("editing")
     await update.message.reply_text("✅ تم حفظ المحتوى بنجاح")
 
@@ -197,19 +177,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
-
     if data.startswith("page_"):
         page = int(data.split("_")[1])
         await query.edit_message_reply_markup(reply_markup=generate_keyboard(page))
         return
-
     button = buttons_data.get(data)
     if button:
         button["clicks"] = button.get("clicks", 0) + 1
-        # تحديث الملف فورًا
         with open(BUTTONS_FILE, "w", encoding="utf-8") as f:
             json.dump(buttons_data, f, ensure_ascii=False, indent=4)
-
         type_ = button["type"]
         if type_ == "text":
             await query.message.reply_text(button["text"])
@@ -223,31 +199,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 # التشغيل النهائي
 # =========================
-async def main():
+if __name__ == "__main__":
+    print("🚀 البوت يعمل الآن على Railway مع حل /edit")
     app = ApplicationBuilder().token(TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
     app.add_handler(CommandHandler("delete", delete_button))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
-
-    print("🚀 البوت يعمل الآن بثبات على Railway")
-    await app.run_polling()
-
-if __name__ == "__main__":
-    import os, sys
-    import asyncio
-
-    if not os.getenv("RAILWAY"):
-        print("⚠ البوت لا يعمل إلا على Railway. إنهاء العملية.")
-        sys.exit(0)
-
-    try:
-        # إذا كان هناك event loop يعمل (مثل Railway)
-        loop = asyncio.get_running_loop()
-        loop.create_task(main())
-    except RuntimeError:
-        # إذا لم يكن هناك loop، نشغل بشكل طبيعي
-        asyncio.run(main())
+    app.run_polling()
