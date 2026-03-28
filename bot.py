@@ -25,11 +25,8 @@ if not os.getenv("RAILWAY"):
 # الإعدادات
 # =========================
 TOKEN = os.getenv("BOT_TOKEN")
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # رابط البوت العام على Railway
 if not TOKEN:
     raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
-if not WEBHOOK_URL:
-    raise ValueError("❌ WEBHOOK_URL غير موجود في Railway Variables")
 
 ADMIN_IDS = [1000660019, 1816045034]  # الأدمنين
 
@@ -121,12 +118,13 @@ async def edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
 
-    if not context.args or not context.args[0].isdigit():
+    if not context.args:
         await update.message.reply_text("اكتب رقم الزر بعد الأمر مثال:\n/edit 5")
         return
 
     button_id = f"btn{context.args[0]}"
     context.user_data["editing"] = button_id
+
     await update.message.reply_text("أرسل الآن النص أو الصورة أو الفيديو لهذا الزر.")
 
 # =========================
@@ -137,7 +135,7 @@ async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
 
-    if not context.args or not context.args[0].isdigit():
+    if not context.args:
         await update.message.reply_text("اكتب رقم الزر بعد الأمر مثال:\n/delete 5")
         return
 
@@ -150,7 +148,7 @@ async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🗑 تم حذف محتوى الزر بنجاح")
 
 # =========================
-# استقبال محتوى الأدمن
+# استقبال محتوى الأدمن (حل نهائي للـ /edit)
 # =========================
 async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "editing" not in context.user_data:
@@ -158,30 +156,38 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     button_id = context.user_data["editing"]
 
+    # نص
     if update.message.text:
         buttons_data[button_id] = {
             "type": "text",
             "text": update.message.text,
             "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
         }
+    # صورة
     elif update.message.photo:
         buttons_data[button_id] = {
             "type": "photo",
             "file_id": update.message.photo[-1].file_id,
-            "caption": update.message.caption,
+            "caption": update.message.caption or "",
             "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
         }
+    # فيديو
     elif update.message.video:
         buttons_data[button_id] = {
             "type": "video",
             "file_id": update.message.video.file_id,
-            "caption": update.message.caption,
+            "caption": update.message.caption or "",
             "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
         }
+    else:
+        await update.message.reply_text("❌ نوع محتوى غير مدعوم")
+        return
 
+    # ✅ حفظ مباشر في buttons.json
     with open(BUTTONS_FILE, "w", encoding="utf-8") as f:
         json.dump(buttons_data, f, ensure_ascii=False, indent=4)
 
+    # إزالة المؤقت
     context.user_data.pop("editing")
     await update.message.reply_text("✅ تم حفظ المحتوى بنجاح")
 
@@ -214,7 +220,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
 
 # =========================
-# التشغيل النهائي عبر Webhook
+# التشغيل النهائي
 # =========================
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
@@ -226,14 +232,8 @@ async def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
 
-    print("🚀 البوت يعمل الآن على Railway مع حل /edit")
-
-    # تشغيل البوت عبر Webhook لتجنب مشاكل getUpdates 409
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.environ.get("PORT", 8000)),
-        webhook_url=WEBHOOK_URL
-    )
+    print("🚀 البوت يعمل الآن على Railway مع حل نهائي للـ /edit")
+    await app.run_polling(drop_pending_updates=True)  # مهم: يحل مشاكل getUpdates 409
 
 if __name__ == "__main__":
     asyncio.run(main())
