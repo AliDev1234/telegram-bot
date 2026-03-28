@@ -29,7 +29,12 @@ if not TOKEN:
 
 ADMIN_IDS = [1000660019, 1816045034]  # الأدمنين
 
-logging.basicConfig(level=logging.INFO)
+# ---------------------------
+# إعدادات تسجيل الأخطاء
+# ---------------------------
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
 
 # =========================
 # حذف أي Webhook قديم قبل تشغيل البوت
@@ -41,7 +46,7 @@ async def clear_webhook():
         await bot.delete_webhook(drop_pending_updates=True)
         print("✅ تم حذف Webhook القديم")
     except Exception as e:
-        print(f"⚠ حدث خطأ أثناء مسح Webhook: {e}")
+        print(f"⚠ لم يتم حذف Webhook القديم: {e}")
 
 # =========================
 # ملف التخزين
@@ -81,7 +86,10 @@ def generate_keyboard(page=0):
     end = min(start + BUTTONS_PER_PAGE, TOTAL_BUTTONS + 1)
     for i in range(start, end):
         keyboard.append([
-            InlineKeyboardButton(BUTTON_NAMES.get(i, f"قسم {i}"), callback_data=f"btn{i}")
+            InlineKeyboardButton(
+                BUTTON_NAMES.get(i, f"قسم {i}"),
+                callback_data=f"btn{i}"
+            )
         ])
     nav = []
     if page > 0:
@@ -108,8 +116,10 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
+
     total_buttons = len(buttons_data)
     total_clicks = sum(b.get("clicks", 0) for b in buttons_data.values())
+
     await update.message.reply_text(
         f"📊 إحصائيات البوت:\n\n"
         f"🔥 عدد الأزرار المخزنة: {total_buttons}\n"
@@ -123,11 +133,14 @@ async def edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
+
     if not context.args:
         await update.message.reply_text("اكتب رقم الزر بعد الأمر مثال:\n/edit 5")
         return
+
     button_id = f"btn{context.args[0]}"
     context.user_data["editing"] = button_id
+
     await update.message.reply_text("أرسل الآن النص أو الصورة أو الفيديو لهذا الزر.")
 
 # =========================
@@ -137,14 +150,17 @@ async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
+
     if not context.args:
         await update.message.reply_text("اكتب رقم الزر بعد الأمر مثال:\n/delete 5")
         return
+
     button_id = f"btn{context.args[0]}"
     if button_id in buttons_data:
         buttons_data.pop(button_id)
         with open(BUTTONS_FILE, "w", encoding="utf-8") as f:
             json.dump(buttons_data, f, ensure_ascii=False, indent=4)
+
     await update.message.reply_text("🗑 تم حذف محتوى الزر بنجاح")
 
 # =========================
@@ -153,7 +169,9 @@ async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "editing" not in context.user_data:
         return
+
     button_id = context.user_data["editing"]
+
     if update.message.text:
         buttons_data[button_id] = {
             "type": "text",
@@ -174,8 +192,10 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "caption": update.message.caption,
             "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
         }
+
     with open(BUTTONS_FILE, "w", encoding="utf-8") as f:
         json.dump(buttons_data, f, ensure_ascii=False, indent=4)
+
     context.user_data.pop("editing")
     await update.message.reply_text("✅ تم حفظ المحتوى بنجاح")
 
@@ -190,11 +210,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         page = int(data.split("_")[1])
         await query.edit_message_reply_markup(reply_markup=generate_keyboard(page))
         return
+
     button = buttons_data.get(data)
     if button:
         button["clicks"] = button.get("clicks", 0) + 1
         with open(BUTTONS_FILE, "w", encoding="utf-8") as f:
             json.dump(buttons_data, f, ensure_ascii=False, indent=4)
+
         type_ = button["type"]
         if type_ == "text":
             await query.message.reply_text(button["text"])
@@ -214,6 +236,7 @@ async def main():
 
     # تشغيل البوت
     app = ApplicationBuilder().token(TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
