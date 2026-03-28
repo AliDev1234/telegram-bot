@@ -42,12 +42,13 @@ bot = Bot(TOKEN)
 async def clear_webhook():
     try:
         await bot.delete_webhook(drop_pending_updates=True)
-        print("✅ تم حذف Webhook")
+        print("✅ تم حذف أي Webhook موجود")
+        await asyncio.sleep(1)  # انتظر ثانية قبل بدء polling
     except Exception as e:
-        print(e)
+        print("⚠ تحذير عند حذف Webhook:", e)
 
 # =========================
-# DATABASE (مهم)
+# DATABASE
 # =========================
 from db import save_button, get_button, add_click, get_stats, delete_button
 
@@ -148,21 +149,21 @@ async def delete_button_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🗑 تم الحذف")
 
 # =========================
-# حفظ المحتوى (🔥 أهم جزء)
+# حفظ المحتوى
 # =========================
 async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "editing" not in context.user_data:
         return
 
     button_id = context.user_data["editing"]
-    old_button = get_button(button_id)  # جلب البيانات القديمة
+    old_button = get_button(button_id) or {}
 
     if update.message.text:
         save_button(
             button_id,
             "text",
             update.message.text,
-            old_button.get("caption", "")
+            old_button.get("caption")
         )
 
     elif update.message.photo:
@@ -170,7 +171,7 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
             button_id,
             "photo",
             update.message.photo[-1].file_id,
-            update.message.caption if update.message.caption else old_button.get("caption", "")
+            update.message.caption or old_button.get("caption")
         )
 
     elif update.message.video:
@@ -178,7 +179,7 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
             button_id,
             "video",
             update.message.video.file_id,
-            update.message.caption if update.message.caption else old_button.get("caption", "")
+            update.message.caption or old_button.get("caption")
         )
 
     context.user_data.pop("editing")
@@ -198,7 +199,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await query.edit_message_reply_markup(reply_markup=generate_keyboard(page))
 
     button = get_button(data)
-
     if not button:
         return await query.message.reply_text("⚠ لا يوجد محتوى")
 
@@ -206,15 +206,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if button["type"] == "text":
         await query.message.reply_text(button["text"])
-
     elif button["type"] == "photo":
         await query.message.reply_photo(button["file_id"], caption=button["caption"])
-
     elif button["type"] == "video":
         await query.message.reply_video(button["file_id"], caption=button["caption"])
 
 # =========================
-# التشغيل
+# التشغيل مع حل Conflict
 # =========================
 async def main():
     await clear_webhook()
@@ -228,8 +226,14 @@ async def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.ALL, receive_content))
 
-    print("🚀 البوت يعمل بدون مشاكل")
-    await app.run_polling(drop_pending_updates=True)
+    # حل Conflict: retry loop
+    while True:
+        try:
+            print("🚀 البوت يعمل الآن بدون Conflict")
+            await app.run_polling(drop_pending_updates=True)
+        except Exception as e:
+            print("⚠ خطأ أثناء polling، إعادة المحاولة:", e)
+            await asyncio.sleep(2)
 
 if __name__ == "__main__":
     asyncio.run(main())
