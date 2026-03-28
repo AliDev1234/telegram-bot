@@ -132,7 +132,7 @@ async def edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await update.message.reply_text("اكتب رقم الزر\nمثال:\n/edit 5")
 
     context.user_data["editing"] = f"btn{context.args[0]}"
-    await update.message.reply_text("أرسل المحتوى الآن")
+    await update.message.reply_text("أرسل المحتوى الآن (نص، صورة، أو فيديو)")
 
 # =========================
 # /delete
@@ -155,18 +155,33 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     button_id = context.user_data["editing"]
+    old_button = get_button(button_id)  # جلب البيانات القديمة
 
     if update.message.text:
-        save_button(button_id, "text", update.message.text, None)
+        save_button(
+            button_id,
+            "text",
+            update.message.text,
+            old_button.get("caption", "")
+        )
 
     elif update.message.photo:
-        save_button(button_id, "photo", update.message.photo[-1].file_id, update.message.caption)
+        save_button(
+            button_id,
+            "photo",
+            update.message.photo[-1].file_id,
+            update.message.caption if update.message.caption else old_button.get("caption", "")
+        )
 
     elif update.message.video:
-        save_button(button_id, "video", update.message.video.file_id, update.message.caption)
+        save_button(
+            button_id,
+            "video",
+            update.message.video.file_id,
+            update.message.caption if update.message.caption else old_button.get("caption", "")
+        )
 
     context.user_data.pop("editing")
-
     await update.message.reply_text("✅ تم الحفظ")
 
 # =========================
@@ -213,7 +228,7 @@ async def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.ALL, receive_content))
 
-    print("🚀 يعمل بدون مشاكل")
+    print("🚀 البوت يعمل بدون مشاكل")
     await app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
