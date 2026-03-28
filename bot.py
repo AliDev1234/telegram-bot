@@ -225,6 +225,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # إزالة أي Webhook موجود قبل Polling
+    await app.bot.delete_webhook(drop_pending_updates=True)
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
     app.add_handler(CommandHandler("edit", edit_button))
@@ -232,8 +235,8 @@ async def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
 
-    print("🚀 البوت يعمل الآن على Railway مع حل نهائي للـ /edit")
-    await app.run_polling(drop_pending_updates=True)  # مهم: يحل مشاكل getUpdates 409
+    print("🚀 البوت يعمل الآن على Railway مع حل نهائي للـ /edit و Conflict")
+    await app.run_polling(drop_pending_updates=True)  # يحل مشكلة getUpdates 409
 
 if __name__ == "__main__":
     asyncio.run(main())
