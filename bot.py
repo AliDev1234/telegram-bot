@@ -1,6 +1,13 @@
-print("🚀 NEW DEPLOY TEST 999")
-print("NEW VERSION 123")
 import os
+import sys
+
+# =========================
+# تشغيل فقط على Railway
+# =========================
+# Railway يضع متغير البيئة "RAILWAY" بشكل افتراضي
+if not os.getenv("RAILWAY"):
+    print("⚠ البوت لا يعمل إلا على Railway. إنهاء العملية.")
+    sys.exit(0)
 import json
 import logging
 import asyncio
@@ -229,4 +236,17 @@ async def main():
     await app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import os, sys
+    import asyncio
+
+    if not os.getenv("RAILWAY"):
+        print("⚠ البوت لا يعمل إلا على Railway. إنهاء العملية.")
+        sys.exit(0)
+
+    try:
+        # إذا كان هناك event loop يعمل (مثل Railway)
+        loop = asyncio.get_running_loop()
+        loop.create_task(main())
+    except RuntimeError:
+        # إذا لم يكن هناك loop، نشغل بشكل طبيعي
+        asyncio.run(main())
