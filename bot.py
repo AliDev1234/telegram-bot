@@ -157,27 +157,30 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     button_id = context.user_data["editing"]
 
+    # إنشاء الزر إذا لم يكن موجود
+    if button_id not in buttons_data:
+        buttons_data[button_id] = {"clicks": 0}
+
+    # تحديد نوع المحتوى وحفظه
     if update.message.text:
-        buttons_data[button_id] = {
+        buttons_data[button_id].update({
             "type": "text",
-            "text": update.message.text,
-            "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
-        }
+            "text": update.message.text
+        })
     elif update.message.photo:
-        buttons_data[button_id] = {
+        buttons_data[button_id].update({
             "type": "photo",
             "file_id": update.message.photo[-1].file_id,
-            "caption": update.message.caption,
-            "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
-        }
+            "caption": update.message.caption
+        })
     elif update.message.video:
-        buttons_data[button_id] = {
+        buttons_data[button_id].update({
             "type": "video",
             "file_id": update.message.video.file_id,
-            "caption": update.message.caption,
-            "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
-        }
+            "caption": update.message.caption
+        })
 
+    # حفظ جميع البيانات فورًا
     with open(BUTTONS_FILE, "w", encoding="utf-8") as f:
         json.dump(buttons_data, f, ensure_ascii=False, indent=4)
 
