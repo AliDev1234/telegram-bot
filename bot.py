@@ -25,8 +25,11 @@ if not os.getenv("RAILWAY"):
 # الإعدادات
 # =========================
 TOKEN = os.getenv("BOT_TOKEN")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # رابط البوت العام على Railway
 if not TOKEN:
     raise ValueError("❌ BOT_TOKEN غير موجود في Railway Variables")
+if not WEBHOOK_URL:
+    raise ValueError("❌ WEBHOOK_URL غير موجود في Railway Variables")
 
 ADMIN_IDS = [1000660019, 1816045034]  # الأدمنين
 
@@ -118,13 +121,12 @@ async def edit_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
 
-    if not context.args:
+    if not context.args or not context.args[0].isdigit():
         await update.message.reply_text("اكتب رقم الزر بعد الأمر مثال:\n/edit 5")
         return
 
     button_id = f"btn{context.args[0]}"
     context.user_data["editing"] = button_id
-
     await update.message.reply_text("أرسل الآن النص أو الصورة أو الفيديو لهذا الزر.")
 
 # =========================
@@ -135,7 +137,7 @@ async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ هذا الأمر خاص بالأدمن فقط")
         return
 
-    if not context.args:
+    if not context.args or not context.args[0].isdigit():
         await update.message.reply_text("اكتب رقم الزر بعد الأمر مثال:\n/delete 5")
         return
 
@@ -212,7 +214,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("⚠ لا يوجد محتوى لهذا الزر بعد")
 
 # =========================
-# التشغيل النهائي
+# التشغيل النهائي عبر Webhook
 # =========================
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
@@ -225,7 +227,13 @@ async def main():
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
 
     print("🚀 البوت يعمل الآن على Railway مع حل /edit")
-    await app.run_polling(drop_pending_updates=True)  # مهم: يحل مشاكل getUpdates 409
+
+    # تشغيل البوت عبر Webhook لتجنب مشاكل getUpdates 409
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.environ.get("PORT", 8000)),
+        webhook_url=WEBHOOK_URL
+    )
 
 if __name__ == "__main__":
     asyncio.run(main())
