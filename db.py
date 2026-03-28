@@ -1,7 +1,7 @@
 import json
 import os
 
-DB_FILE = "Buttons.json"
+DB_FILE = "buttons.json"
 
 # تحميل البيانات
 def load_data():
