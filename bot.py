@@ -1,10 +1,9 @@
-print("🔥 تعديل للتجربة")
 import os
 import sys
 import json
 import logging
 import asyncio
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Bot
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -31,6 +30,15 @@ if not TOKEN:
 ADMIN_IDS = [1000660019, 1816045034]  # الأدمنين
 
 logging.basicConfig(level=logging.INFO)
+
+# =========================
+# حذف أي Webhook قديم قبل تشغيل البوت
+# =========================
+bot = Bot(TOKEN)
+
+async def clear_webhook():
+    await bot.delete_webhook(drop_pending_updates=True)
+    print("✅ تم حذف Webhook القديم")
 
 # =========================
 # ملف التخزين
@@ -148,7 +156,7 @@ async def delete_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🗑 تم حذف محتوى الزر بنجاح")
 
 # =========================
-# استقبال محتوى الأدمن (حل نهائي للـ /edit)
+# استقبال محتوى الأدمن
 # =========================
 async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "editing" not in context.user_data:
@@ -156,38 +164,30 @@ async def receive_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     button_id = context.user_data["editing"]
 
-    # نص
     if update.message.text:
         buttons_data[button_id] = {
             "type": "text",
             "text": update.message.text,
             "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
         }
-    # صورة
     elif update.message.photo:
         buttons_data[button_id] = {
             "type": "photo",
             "file_id": update.message.photo[-1].file_id,
-            "caption": update.message.caption or "",
+            "caption": update.message.caption,
             "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
         }
-    # فيديو
     elif update.message.video:
         buttons_data[button_id] = {
             "type": "video",
             "file_id": update.message.video.file_id,
-            "caption": update.message.caption or "",
+            "caption": update.message.caption,
             "clicks": buttons_data.get(button_id, {}).get("clicks", 0)
         }
-    else:
-        await update.message.reply_text("❌ نوع محتوى غير مدعوم")
-        return
 
-    # ✅ حفظ مباشر في buttons.json
     with open(BUTTONS_FILE, "w", encoding="utf-8") as f:
         json.dump(buttons_data, f, ensure_ascii=False, indent=4)
 
-    # إزالة المؤقت
     context.user_data.pop("editing")
     await update.message.reply_text("✅ تم حفظ المحتوى بنجاح")
 
@@ -223,10 +223,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # التشغيل النهائي
 # =========================
 async def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+    # إزالة أي Webhook قديم قبل بدء البوت
+    await clear_webhook()
 
-    # إزالة أي Webhook موجود قبل Polling
-    await app.bot.delete_webhook(drop_pending_updates=True)
+    # تشغيل البوت
+    app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
@@ -235,8 +236,8 @@ async def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO | filters.VIDEO, receive_content))
 
-    print("🚀 البوت يعمل الآن على Railway مع حل نهائي للـ /edit و Conflict")
-    await app.run_polling(drop_pending_updates=True)  # يحل مشكلة getUpdates 409
+    print("🚀 البوت يعمل الآن على Railway مع حل /edit")
+    await app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
