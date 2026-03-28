@@ -1,6 +1,6 @@
-import os
 import asyncio
 from telegram import Bot
+import os
 
 TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(TOKEN)
